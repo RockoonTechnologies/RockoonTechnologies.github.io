@@ -1,0 +1,205 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome file</title>
+  <link rel="stylesheet" href="https://stackedit.io/style.css" />
+</head>
+
+<body class="stackedit">
+  <div class="stackedit__html"><h1 id="balancing-ball-with-a-pid-controller">Balancing Ball with a PID controller</h1>
+<p><img src="https://imgur.com/pPdcFZS.gif" alt="enter image description here"><br>
+PID controllers are extremely robust control loops used in everything like industrial machines, to even rockets. They work by using Three values (The P, I and D) to modulate a input and return the desired output.</p>
+<p>Today we are going to explore these systems in Unity, a enviroment we will use for its ease, but most importantly, the visuals. Everything is more fun in 3D.</p>
+<h1 id="lets-begin">Let’s Begin</h1>
+<p>To start we are going to create a new Unity Project. I am using Version 2020.1.1f1. but any semi-recent version will suffice.</p>
+<p><img src="https://imgur.com/3hNrwnw.png" alt="Image"></p>
+<p>Make sure the project is “3D”, it can be named whatever you desire.<br>
+Then, create the project. While we wait, we can discuss the priniciples surronding PID systems.</p>
+<h1 id="pid-overview">PID Overview</h1>
+<p>So, as we discussed, PID is composed of three main elements. These operate around a “error”, think of this as the input. This is the difference between the desired value and the current input.</p>
+<p><strong>P</strong> - proportional to the error, takes into account a gain (usually seen as <em>k</em>)<br>
+<strong>I</strong> - “integrates”, takes into account past errors and combines them, its goal is clean this up.<br>
+<strong>D</strong> - The derevative, operates around the change in the error.</p>
+<p>Combine these all together and you get a (hopefully) nice output. However this is missing a key step. As you can see each method produces their own result, and will have varying success. Therefore its nice to have a variable that control the <em>gain</em> of each technique. Therefore, essentially all PID systems contain variables you change, or tune, until we get the desired result. We will visit this soon.</p>
+<h1 id="actually-doing-things">Actually doing things</h1>
+<p>So now, we have a empty project that we must populate. Lets begin by creating the enviroment.</p>
+<ol>
+<li>Create a cube (Right click in the scene hierarchy &gt; 3d Objects &gt; Cube) at the orgin (0,0,0) and scale it like so (10, .5, 10). This provides the platform that the ball will roll around and what will actually rotate to control the ball. Ensure this gameobject has a “Box Collider” Component.</li>
+<li>Create the Ball  (Right click in the scene hierarchy &gt; 3d Objects &gt; Sphere) with the position of (0, 2, 0). Then scroll down in the inspector and add a “Rigidbody” Component. This enables physics.</li>
+</ol>
+<p>Now we got to do actual stuff: scripting. Normally, if you were replicating this in the real world this would be a much more daunting of a task, but luckily Unity already has tons of methods that will make this easier.</p>
+<p>First thing we need to do is create a C# class (Right Click in Assets &gt; Create &gt; C# script)</p>
+<p>And we will populate it with the following code:</p>
+<pre><code>using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class PID : MonoBehaviour
+ {
+    public Transform ball;
+    double PIDX, PIDZ, errorX, errorZ, previous_errorX, previous_errorZ, pX, pZ;
+
+
+
+int desiredPosX = 0;//servoZ
+int desiredPosZ = 0;//servoX
+
+
+
+
+
+//P
+double pidX_p = 0;
+double pidZ_p = 0;
+
+//I
+double pidZ_i = 0;
+double pidX_i = 0;
+
+//D
+double pidX_d = 0;
+double pidZ_d = 0;
+
+
+//Gains
+public double kp = 0.2;
+public double ki = 0.05;
+public double kd = 0.2;
+
+double dt, currentTime, previousTime;
+// Start is called before the first frame update
+void Start()
+{
+    
+}
+
+// Update is called once per frame
+void Update()
+{
+    
+    dt = Time.deltaTime;
+    double[] outputs = pidcompute();
+    
+    this.transform.eulerAngles = new Vector3((float)outputs[0], 0, (float)outputs[1]);
+    
+    
+
+}
+double[] pidcompute () {
+    previous_errorX = errorX;
+    previous_errorZ = errorZ; 
+
+    //Inputs to the PID Controller
+    errorX = ball.position.x - desiredPosX;
+    errorZ =  ball.position.z- desiredPosZ;
+
+    //Defining "P" 
+    pidX_p = kp*errorX;
+    pidZ_p = kp*errorZ;
+
+    //Defining "D"
+    pidX_d = kd*((errorX - previous_errorX)/dt);
+    pidZ_d = kd*((errorZ - previous_errorZ)/dt);
+
+    //Defining "I"
+    pidX_i = ki * (pidX_i + errorX * dt);
+    pidZ_i = ki * (pidZ_i + errorZ * dt);
+
+    //Adding it all up
+    PIDX = pidX_p + pidX_i + pidX_d;
+    PIDZ = pidZ_p + pidZ_i + pidZ_d;
+
+    //Outputs to send to a actuator
+    pZ = PIDZ;
+    pX = PIDX;
+
+    double[] vals;
+    vals = new double[2];
+    vals[0] = -pZ;
+    vals[1] =  pX;
+
+    return vals;
+ }
+}
+</code></pre>
+<p>Now lets go over what this does. First of all we declare a bunch of variables, lets go over what they do.</p>
+<pre><code>	public Transform ball;
+    double PIDX, PIDZ, errorX, errorZ, previous_errorX, previous_errorZ, pX, pZ;
+
+
+    int desiredPosX = 0;
+    int desiredPosZ = 0;
+</code></pre>
+<p>First of all we create a transform, this is a variable that will hold the position, rotation of our ball. Then we declare some of our PID values, we declare our errors (inputs), previous inputs, our output variables, etc. Lastly, we have our desired positon of our ball, which naturally, is (0,0).</p>
+<p>Then, notably, we declare our gains.</p>
+<pre><code>//Gains
+public double kp = 0.2;
+public double ki = 0.05;
+public double kd = 0.2;
+</code></pre>
+<p>These are preset values that I found worked good enough to demonstrate and show whats happening. We will modify them later, as they are not ideal.</p>
+<p>Skipping the <code>Start()</code> function, that does nothing, we have the <code>Update()</code> function thats called once every frame.</p>
+<p>The first thing we must do, regardless of anything else is get our <code>dt</code> this is essential for our PID operations as it is time sensitive.</p>
+<pre><code>	dt = Time.deltaTime;
+    double[] outputs = pidcompute();
+    
+    this.transform.eulerAngles = new Vector3((float)outputs[0], 0, (float)outputs[1]);
+</code></pre>
+<p>Then we call the function called <code>pidcompute()</code> this is where the actual magic takes place. This will return two values, which in turn (pun intended), will rotate our platform accordingly.</p>
+<p>The first thing we’ll do is set our previous error, to naturally the older error value.<br>
+After this we’ll update our inputs with the current balls position for each respective axis.</p>
+<pre><code>	previous_errorX = errorX;
+	previous_errorZ = errorZ; 
+
+    //Inputs to the PID Controller
+    errorX = ball.position.x - desiredPosX;
+    errorZ =  ball.position.z- desiredPosZ;
+</code></pre>
+<p>Now, we get to the actual math, but whilst seemingly daunting, these numbers are remarkably easy to resolve.</p>
+<pre><code>	//Defining "P" 
+	pidX_p = kp*errorX;
+	pidZ_p = kp*errorZ;
+    //Defining "D"
+    pidX_d = kd*((errorX - previous_errorX)/dt);
+    pidZ_d = kd*((errorZ - previous_errorZ)/dt);
+
+    //Defining "I"
+    pidX_i = ki * (pidX_i + errorX * dt);
+    pidZ_i = ki * (pidZ_i + errorZ * dt);
+</code></pre>
+<p>Now that we have our P, I &amp; D values we solve them all together.</p>
+<pre><code>PIDX = pidX_p + pidX_i + pidX_d;
+PIDZ = pidZ_p + pidZ_i + pidZ_d;
+</code></pre>
+<p>After this, we bundle it as a array and which, as stated, gets turned into the rotation of the platform.</p>
+<p>Now we can Test!</p>
+<p><img src="https://imgur.com/pPdcFZS.gif" alt="enter image description here"><br>
+As you can see our code prevents the ball from rolling, off whilst manipulating itself so it homes in on the orgin! You can see the panel rotate as the ball translates itself across the surface.</p>
+<p>However, after only a couple of seconds you will realise its oscillating, the behaviour isnt completely desirable. Let me introduce you to the hell they call “Tuning”.</p>
+<h1 id="tuning">Tuning</h1>
+<p>Our PID controller is only as good as the gains we supply it with. Our base values work, but they dont work well. Therefore we must tune it.<br>
+To be honest, you could brute force this, sitting around and changing values until you get a good outcome. But thats for losers, real gamers either use proper documented methodology or AI.</p>
+<p>The best, and most common method is the following:<br>
+To tune a PID use the following steps:</p>
+<ol>
+<li>Set all gains to zero.</li>
+<li>Increase the P gain until you get steady, consitent oscillation.</li>
+<li>Increase the D gain until the the oscillations go away.</li>
+<li>Repeat steps 2 and 3 until increasing the D gain does not stop the oscillations.</li>
+<li>Increase the I gain until it brings you to the desired point.</li>
+</ol>
+<p>Following this I ended up with the values:<br>
+P = .14<br>
+I = 0.06<br>
+D = .04</p>
+<p>Which work pretty well.</p>
+<h1 id="the-end">The End</h1>
+<p>This is the end to this tutorial, but I encourage you to continue playing around with tuning and such or simply reuse this code in whole different manner, PID is great for most systems.<br>
++</p>
+</div>
+</body>
+
+</html>
