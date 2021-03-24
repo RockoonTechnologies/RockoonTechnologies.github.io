@@ -33,7 +33,9 @@ body {font-family: 'Lato', sans-serif;}
 </div>
 <script>
 function run() {
+    console.log("hey");
     d3.json("insults.json", function(data) {
+        console.log(data);
         var item = data.insults[Math.floor(Math.random() * data.insults.length)];
         document.getElementById("result").innerHTML = item;
     });
