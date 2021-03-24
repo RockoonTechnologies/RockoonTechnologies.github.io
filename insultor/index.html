@@ -38,6 +38,8 @@ function run() {
     .then(response => response.json())
     .then(data => {
         console.log(data);
+        data = JSON.parse(data);
+        console.log(data);
         var item = data.insults[Math.floor(Math.random() * data.insults.length)];
         document.getElementById("result").innerHTML = item;
     });
