@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="UTF-8">
+<title>Page Title</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Lato@1&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+<style>
+body {font-family: 'Lato', sans-serif;}
+.upper {padding-top: 15%;}
+.box {
+    
+    background-color: burlywood;
+    text-align: center;
+    padding: 6px;
+    border-radius: 3px;
+    margin: 0 auto;
+    width: 40%;
+}
+</style>
+
+<body>
+
+<div class="upper">         
+<div class="box">
+ <h1>Insult me ig</h1>
+ <h3 id="result"></h3>
+ <br>
+ <button onclick="run()">Generate</button>
+</div>
+</div>
+<script>
+function run() {
+    d3.json("insults.json", function(data) {
+        var item = data.insults[Math.floor(Math.random() * data.insults.length)];
+        document.getElementById("result").innerHTML = item;
+    });
+}
+
+</script>
+</body>
+</html>
